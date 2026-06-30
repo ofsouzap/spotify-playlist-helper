@@ -31,7 +31,10 @@ def test_diff_tracks_ignores_order_and_returns_set_difference():
         TrackInfo(uri="spotify:track:3", album="Album C", name="C", artists=["Artist"]),
     ]
 
-    diff_output = diff_tracks(source_tracks, target_tracks)
+    diff_output = diff_tracks(
+        source_tracks=source_tracks,
+        target_tracks=target_tracks,
+    )
 
     assert diff_output == DiffTracksOutput(
         to_add=[source_tracks[0]], to_remove=[target_tracks[1]]

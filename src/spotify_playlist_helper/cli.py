@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import click
+from typing import Literal
 
-from .core import diff_tracks, track_display_name, track_sort_key, unique_tracks
+from .core import (
+    DiffTracksOutput,
+    diff_tracks,
+    track_display_name,
+    track_sort_key,
+    unique_tracks,
+)
 from .spotify_client import (
     build_spotify_client,
     create_playlist_from_tracks,
@@ -11,6 +18,8 @@ from .spotify_client import (
     playlist_tracks,
 )
 
+OutputFormat = Literal["human", "machine"]
+
 
 def _resolve_union_tracks(sp_client, source_playlist_ids: tuple[str, ...]):
     collected = []
@@ -18,6 +27,35 @@ def _resolve_union_tracks(sp_client, source_playlist_ids: tuple[str, ...]):
         collected.extend(playlist_tracks(sp_client, playlist_id))
     result = sorted(unique_tracks(collected), key=track_sort_key)
     return result
+
+
+def _echo_diff_output_human(diff_output: DiffTracksOutput) -> None:
+    to_add = sorted(diff_output.to_add, key=track_sort_key)
+    to_remove = sorted(diff_output.to_remove, key=track_sort_key)
+
+    if to_add or to_remove:
+        if to_add:
+            click.echo(f"Tracks to add: {len(to_add)}")
+            for track in to_add:
+                click.echo(f"+ {track_display_name(track)}")
+
+        if to_remove:
+            click.echo(f"Tracks to remove: {len(to_remove)}")
+            for track in to_remove:
+                click.echo(f"- {track_display_name(track)}")
+    else:
+        click.echo("Target playlist already matches the union.")
+
+
+def _echo_diff_output_machine(diff_output: DiffTracksOutput) -> None:
+    to_add = sorted(diff_output.to_add, key=track_sort_key)
+    to_remove = sorted(diff_output.to_remove, key=track_sort_key)
+
+    for track in to_add:
+        click.echo(f"+{track.uri} - {track.name}")
+
+    for track in to_remove:
+        click.echo(f"-{track.uri} - {track.name}")
 
 
 @click.group()
@@ -72,24 +110,29 @@ def create_union_command(
 @cli.command("diff")
 @click.argument("target_playlist_id")
 @click.argument("source_playlist_ids", nargs=-1, required=True)
-def diff_command(target_playlist_id: str, source_playlist_ids: tuple[str, ...]) -> None:
+@click.option(
+    "--output-format",
+    type=click.Choice(["human", "machine"], case_sensitive=False),
+    default="human",
+    show_default=True,
+    help="Choose human-readable or machine-readable diff output.",
+)
+def diff_command(
+    target_playlist_id: str,
+    source_playlist_ids: tuple[str, ...],
+    output_format: OutputFormat,
+) -> None:
     sp_client = build_spotify_client()
     source_tracks = _resolve_union_tracks(sp_client, source_playlist_ids)
     target_tracks = playlist_tracks(sp_client, target_playlist_id)
-    diff_output = diff_tracks(source_tracks, target_tracks)
-    to_add = sorted(diff_output.to_add, key=track_sort_key)
-    to_remove = sorted(diff_output.to_remove, key=track_sort_key)
+    diff_output = diff_tracks(
+        source_tracks=source_tracks,
+        target_tracks=target_tracks,
+    )
 
-    if to_add or to_remove:
-        if to_add:
-            click.echo(f"Tracks to add: {len(to_add)}")
-            for track in to_add:
-                click.echo(f"+ {track_display_name(track)}")
-
-        if to_remove:
-            click.echo(f"Tracks to remove: {len(to_remove)}")
-            for track in to_remove:
-                click.echo(f"- {track_display_name(track)}")
-
+    if output_format == "machine":
+        print("Machine-readable diff output:")
+        _echo_diff_output_machine(diff_output)
     else:
-        click.echo("Target playlist already matches the union.")
+        print("Human-readable diff output:")
+        _echo_diff_output_human(diff_output)

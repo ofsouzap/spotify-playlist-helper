@@ -42,6 +42,7 @@ def track_sort_key(track: TrackInfo) -> tuple[str, ...]:
 
 
 def diff_tracks(
+    *,
     source_tracks: list[TrackInfo],
     target_tracks: list[TrackInfo],
 ) -> DiffTracksOutput:
