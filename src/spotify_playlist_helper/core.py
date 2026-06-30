@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class TrackInfo:
     uri: str
+    album: str
     name: str
     artists: list[str]
 
@@ -31,8 +32,13 @@ def track_uri_set(tracks: list[TrackInfo]) -> set[str]:
     return {track.uri for track in tracks}
 
 
-def track_sort_key(track: TrackInfo) -> tuple[str, str, str]:
-    return (track.name.casefold(), ", ".join(track.artists).casefold(), track.uri)
+def track_sort_key(track: TrackInfo) -> tuple[str, ...]:
+    return (
+        ", ".join(track.artists).casefold(),
+        track.album.casefold(),
+        track.name.casefold(),
+        track.uri,
+    )
 
 
 def diff_tracks(

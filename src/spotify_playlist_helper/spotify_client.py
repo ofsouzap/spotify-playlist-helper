@@ -17,6 +17,7 @@ DEFAULT_SCOPES = "playlist-read-private playlist-read-collaborative playlist-mod
 class _PlaylistItem:
     is_local: bool
     uri: str
+    album: str
     name: str
     artists: list[str]
 
@@ -43,6 +44,16 @@ class _PlaylistItem:
                 "Spotify playlist item track did not include a valid name"
             )
 
+        raw_album = value.get("album")
+        if not isinstance(raw_album, Mapping):
+            raise RuntimeError("Spotify playlist item track did not include an album")
+
+        album_name = raw_album.get("name")
+        if not isinstance(album_name, str) or not album_name:
+            raise RuntimeError(
+                "Spotify playlist item track did not include a valid album name"
+            )
+
         raw_artists = value.get("artists")
         if not isinstance(raw_artists, list):
             raise RuntimeError("Spotify playlist item track did not include artists")
@@ -62,7 +73,13 @@ class _PlaylistItem:
 
             artists.append(artist_name)
 
-        return cls(is_local=is_local, uri=uri, name=name, artists=artists)
+        return cls(
+            is_local=is_local,
+            uri=uri,
+            album=album_name,
+            name=name,
+            artists=artists,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +135,7 @@ def _playlist_items(
         additional_types=("track",),
         limit=100,
         offset=0,
-        fields="items(item(id,uri,name,artists(name),is_local)),next",
+        fields="items(item(id,uri,name,album(name),artists(name),is_local)),next",
     )
     while True:
         if response is None:
@@ -147,7 +164,14 @@ def playlist_tracks(sp_client: spotipy.Spotify, playlist_id: str) -> list[TrackI
     for track in _playlist_items(sp_client, playlist_id):
         if track.is_local:
             continue
-        tracks.append(TrackInfo(uri=track.uri, name=track.name, artists=track.artists))
+        tracks.append(
+            TrackInfo(
+                uri=track.uri,
+                album=track.album,
+                name=track.name,
+                artists=track.artists,
+            )
+        )
     return unique_tracks(tracks)
 
 
