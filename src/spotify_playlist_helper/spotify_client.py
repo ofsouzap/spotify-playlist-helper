@@ -175,6 +175,18 @@ def playlist_tracks(sp_client: spotipy.Spotify, playlist_id: str) -> list[TrackI
     return unique_tracks(tracks)
 
 
+def playlist_name(sp_client: spotipy.Spotify, playlist_id: str) -> str:
+    playlist = sp_client.playlist(playlist_id, fields="name")
+    if playlist is None:
+        raise RuntimeError(f"Spotify did not return playlist details for {playlist_id}")
+
+    name = playlist.get("name")
+    if not isinstance(name, str) or not name:
+        raise RuntimeError(f"Spotify playlist response missing a valid name for {playlist_id}")
+
+    return name
+
+
 def find_playlist_by_name_fragment(
     sp_client: spotipy.Spotify, query: str
 ) -> list[_PlaylistSearchResult]:

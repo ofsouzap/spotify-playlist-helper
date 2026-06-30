@@ -7,6 +7,7 @@ from .spotify_client import (
     build_spotify_client,
     create_playlist_from_tracks,
     find_playlist_by_name_fragment,
+    playlist_name,
     playlist_tracks,
 )
 
@@ -40,16 +41,28 @@ def find_playlist_id_command(query: str) -> None:
 @click.argument("source_playlist_ids", nargs=-1, required=True)
 @click.option("--name", help="Name for the new playlist.")
 @click.option(
-    "--description", default="Created by spotify-playlist-helper", show_default=True
+    "--description",
+    help=(
+        "Optional description for the new playlist. If omitted, the description "
+        "will be generated from the source playlist names."
+    ),
 )
 def create_union_command(
-    source_playlist_ids: tuple[str, ...], name: str | None, description: str
+    source_playlist_ids: tuple[str, ...], name: str | None, description: str | None
 ) -> None:
     sp_client = build_spotify_client()
     union_tracks = _resolve_union_tracks(sp_client, source_playlist_ids)
-    playlist_name = name or f"Union of {len(source_playlist_ids)} Spotify playlists"
+    created_playlist_name = (
+        name or f"Union of {len(source_playlist_ids)} Spotify playlists"
+    )
+    source_playlist_names = [
+        playlist_name(sp_client, playlist_id) for playlist_id in source_playlist_ids
+    ]
+    playlist_description = description or (
+        "This playlist is a union of the playlists: " + ", ".join(source_playlist_names)
+    )
     playlist = create_playlist_from_tracks(
-        sp_client, playlist_name, union_tracks, description=description
+        sp_client, created_playlist_name, union_tracks, description=playlist_description
     )
 
     click.echo(f"Created playlist: {playlist['external_urls']['spotify']}")
