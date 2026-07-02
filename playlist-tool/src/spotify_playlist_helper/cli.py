@@ -1,61 +1,15 @@
 from __future__ import annotations
 
 import click
-from typing import Literal
 
-from .core import (
-    DiffTracksOutput,
-    diff_tracks,
-    track_display_name,
-    track_sort_key,
-    unique_tracks,
+from .playlist_tool import (
+    OutputFormat,
+    calculate_diff_output,
+    create_union_playlist,
+    find_playlist_matches,
+    format_diff_output_text,
 )
-from .spotify_client import (
-    build_spotify_client,
-    create_playlist_from_tracks,
-    find_playlist_by_name_fragment,
-    playlist_name,
-    playlist_tracks,
-)
-
-OutputFormat = Literal["human", "machine"]
-
-
-def _resolve_union_tracks(sp_client, source_playlist_ids: tuple[str, ...]):
-    collected = []
-    for playlist_id in source_playlist_ids:
-        collected.extend(playlist_tracks(sp_client, playlist_id))
-    result = sorted(unique_tracks(collected), key=track_sort_key)
-    return result
-
-
-def _echo_diff_output_human(diff_output: DiffTracksOutput) -> None:
-    to_add = sorted(diff_output.to_add, key=track_sort_key)
-    to_remove = sorted(diff_output.to_remove, key=track_sort_key)
-
-    if to_add or to_remove:
-        if to_add:
-            click.echo(f"Tracks to add: {len(to_add)}")
-            for track in to_add:
-                click.echo(f"+ {track_display_name(track)}")
-
-        if to_remove:
-            click.echo(f"Tracks to remove: {len(to_remove)}")
-            for track in to_remove:
-                click.echo(f"- {track_display_name(track)}")
-    else:
-        click.echo("Target playlist already matches the union.")
-
-
-def _echo_diff_output_machine(diff_output: DiffTracksOutput) -> None:
-    to_add = sorted(diff_output.to_add, key=track_sort_key)
-    to_remove = sorted(diff_output.to_remove, key=track_sort_key)
-
-    for track in to_add:
-        click.echo(f"+{track.uri} - {track.name}")
-
-    for track in to_remove:
-        click.echo(f"-{track.uri} - {track.name}")
+from .spotify_client import build_spotify_client
 
 
 @click.group()
@@ -67,7 +21,7 @@ def cli() -> None:
 @click.argument("query")
 def find_playlist_id_command(query: str) -> None:
     sp_client = build_spotify_client()
-    playlist_matches = find_playlist_by_name_fragment(sp_client, query)
+    playlist_matches = find_playlist_matches(sp_client, query)
     if not playlist_matches:
         raise click.ClickException(f'No playlist found containing "{query}"')
 
@@ -89,22 +43,13 @@ def create_union_command(
     source_playlist_ids: tuple[str, ...], name: str | None, description: str | None
 ) -> None:
     sp_client = build_spotify_client()
-    union_tracks = _resolve_union_tracks(sp_client, source_playlist_ids)
-    created_playlist_name = (
-        name or f"Union of {len(source_playlist_ids)} Spotify playlists"
+    playlist = create_union_playlist(
+        sp_client,
+        source_playlist_ids,
+        name=name,
+        description=description,
     )
-    source_playlist_names = [
-        playlist_name(sp_client, playlist_id) for playlist_id in source_playlist_ids
-    ]
-    playlist_description = description or (
-        "This playlist is a union of the playlists: " + ", ".join(source_playlist_names)
-    )
-    playlist = create_playlist_from_tracks(
-        sp_client, created_playlist_name, union_tracks, description=playlist_description
-    )
-
     click.echo(f"Created playlist: {playlist['external_urls']['spotify']}")
-    click.echo(f"Track count: {len(union_tracks)}")
 
 
 @cli.command("diff")
@@ -123,16 +68,11 @@ def diff_command(
     output_format: OutputFormat,
 ) -> None:
     sp_client = build_spotify_client()
-    source_tracks = _resolve_union_tracks(sp_client, source_playlist_ids)
-    target_tracks = playlist_tracks(sp_client, target_playlist_id)
-    diff_output = diff_tracks(
-        source_tracks=source_tracks,
-        target_tracks=target_tracks,
+    diff_output = calculate_diff_output(
+        sp_client,
+        target_playlist_id=target_playlist_id,
+        source_playlist_ids=source_playlist_ids,
     )
-
-    if output_format == "machine":
-        print("Machine-readable diff output:")
-        _echo_diff_output_machine(diff_output)
-    else:
-        print("Human-readable diff output:")
-        _echo_diff_output_human(diff_output)
+    output_text = format_diff_output_text(diff_output, output_format)
+    if output_text:
+        click.echo(output_text)
