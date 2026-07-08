@@ -24,6 +24,100 @@ class ManagedUnionCheck:
     diff_output: DiffTracksOutput
 
 
+@dataclass(frozen=True, slots=True)
+class NamedSourcePlaylist:
+    """A source playlist ID paired with its current Spotify name."""
+
+    playlist_id: str
+    playlist_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class NamedManagedPlaylist:
+    """A managed target playlist and all of its named sources."""
+
+    playlist_id: str
+    playlist_name: str
+    source_playlists: list[NamedSourcePlaylist]
+
+
+def add_managed_playlist_state(
+    state: ManagerState,
+    target_playlist_id: str,
+    source_playlist_ids: tuple[str, ...],
+) -> ManagerState:
+    """Return updated state that includes a new managed playlist."""
+
+    if not source_playlist_ids:
+        raise RuntimeError("Provide at least one source playlist ID.")
+
+    if any(
+        managed_playlist.playlist_id == target_playlist_id
+        for managed_playlist in state.managed_playlists
+    ):
+        raise RuntimeError(
+            f"A managed playlist with target ID '{target_playlist_id}' already exists."
+        )
+
+    return ManagerState(
+        managed_playlists=[
+            *state.managed_playlists,
+            ManagedUnionPlaylist(
+                playlist_id=target_playlist_id,
+                source_playlist_ids=list(source_playlist_ids),
+            ),
+        ]
+    )
+
+
+def remove_managed_playlist_state(
+    state: ManagerState,
+    target_playlist_id: str,
+) -> ManagerState:
+    """Return updated state that removes one managed playlist."""
+
+    if not any(
+        managed_playlist.playlist_id == target_playlist_id
+        for managed_playlist in state.managed_playlists
+    ):
+        raise RuntimeError(
+            f"No managed playlist with target ID '{target_playlist_id}' was found."
+        )
+
+    return ManagerState(
+        managed_playlists=[
+            managed_playlist
+            for managed_playlist in state.managed_playlists
+            if managed_playlist.playlist_id != target_playlist_id
+        ]
+    )
+
+
+def list_named_managed_playlists(
+    sp_client,
+    state: ManagerState,
+) -> list[NamedManagedPlaylist]:
+    """Resolve Spotify names for all managed playlists and their sources."""
+
+    named_playlists: list[NamedManagedPlaylist] = []
+    for managed_playlist in state.managed_playlists:
+        source_playlists = [
+            NamedSourcePlaylist(
+                playlist_id=source_playlist_id,
+                playlist_name=playlist_name(sp_client, source_playlist_id),
+            )
+            for source_playlist_id in managed_playlist.source_playlist_ids
+        ]
+        named_playlists.append(
+            NamedManagedPlaylist(
+                playlist_id=managed_playlist.playlist_id,
+                playlist_name=playlist_name(sp_client, managed_playlist.playlist_id),
+                source_playlists=source_playlists,
+            )
+        )
+    return named_playlists
+
+
 def calculate_managed_union_checks(
     sp_client,
     state: ManagerState,
