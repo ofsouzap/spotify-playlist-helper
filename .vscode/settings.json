@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "playlist-tool/src",
+        "playlist-manager/src"
+    ]
+}

@@ -1,0 +1,38 @@
+{
+    "include": [
+        "playlist-tool/src",
+        "playlist-manager/src",
+        "playlist-tool/tests",
+        "playlist-manager/tests"
+    ],
+    "venvPath": ".",
+    "venv": ".venv",
+    "executionEnvironments": [
+        {
+            "root": "playlist-tool/src",
+            "extraPaths": [
+                "playlist-manager/src"
+            ]
+        },
+        {
+            "root": "playlist-manager/src",
+            "extraPaths": [
+                "playlist-tool/src"
+            ]
+        },
+        {
+            "root": "playlist-tool/tests",
+            "extraPaths": [
+                "playlist-tool/src",
+                "playlist-manager/src"
+            ]
+        },
+        {
+            "root": "playlist-manager/tests",
+            "extraPaths": [
+                "playlist-tool/src",
+                "playlist-manager/src"
+            ]
+        }
+    ]
+}
