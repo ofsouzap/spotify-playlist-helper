@@ -12,12 +12,14 @@ dependencies = ["click>=8.1", "spotipy>=2.25"]
 
 [project.scripts]
 spotify-playlist-helper = "spotify_playlist_helper.cli:cli"
+spotify-playlist-manager = "spotify_playlist_manager.cli:cli"
 
 [tool.setuptools]
-package-dir = { "" = "playlist-tool/src" }
+packages = ["spotify_playlist_helper", "spotify_playlist_manager"]
 
-[tool.setuptools.packages.find]
-where = ["playlist-tool/src"]
+[tool.setuptools.package-dir]
+spotify_playlist_helper = "playlist-tool/src/spotify_playlist_helper"
+spotify_playlist_manager = "playlist-manager/src/spotify_playlist_manager"
 
 [tool.pytest.ini_options]
-testpaths = ["playlist-tool/tests"]
+testpaths = ["playlist-tool/tests", "playlist-manager/tests"]
