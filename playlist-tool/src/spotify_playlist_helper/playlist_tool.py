@@ -8,7 +8,7 @@ from .core import (
     DiffTracksOutput,
     TrackInfo,
     diff_tracks,
-    track_display_name,
+    track_display_artists,
     track_sort_key,
     unique_tracks,
 )
@@ -20,6 +20,16 @@ from .spotify_client import (
 )
 
 OutputFormat = Literal["human", "machine"]
+
+
+def _spotify_track_link(track_uri: str) -> str:
+    """Return a Spotify web URL for a track URI when possible."""
+    track_uri_prefix = "spotify:track:"
+    if track_uri.startswith(track_uri_prefix):
+        track_id = track_uri[len(track_uri_prefix) :]
+        if track_id:
+            return f"https://open.spotify.com/track/{track_id}"
+    return track_uri
 
 
 def resolve_union_tracks(
@@ -104,18 +114,19 @@ def format_diff_output_text(
         if to_add or to_remove:
             lines: list[str] = []
 
+            def track_display_entry(track: TrackInfo) -> str:
+                return (
+                    f"{track_display_artists(track)} - "
+                    f"{track.name} ({_spotify_track_link(track.uri)})"
+                )
+
             if to_add:
                 lines.append(f"Tracks to add: {len(to_add)}")
-                lines.extend(
-                    f"+ {track_display_name(track)} ({track.uri})" for track in to_add
-                )
+                lines.extend(f"+ {track_display_entry(track)}" for track in to_add)
 
             if to_remove:
                 lines.append(f"Tracks to remove: {len(to_remove)}")
-                lines.extend(
-                    f"- {track_display_name(track)} ({track.uri})"
-                    for track in to_remove
-                )
+                lines.extend(f"- {track_display_entry(track)}" for track in to_remove)
 
             return "\n".join(lines)
 

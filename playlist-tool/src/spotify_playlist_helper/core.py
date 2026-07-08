@@ -54,6 +54,10 @@ def diff_tracks(
     return DiffTracksOutput(to_add=to_add, to_remove=to_remove)
 
 
+def track_display_artists(track: TrackInfo) -> str:
+    return ", ".join(track.artists)
+
+
 def track_display_name(track: TrackInfo) -> str:
-    artist_text = ", ".join(track.artists)
+    artist_text = track_display_artists(track)
     return f"{track.name} - {artist_text}" if artist_text else track.name

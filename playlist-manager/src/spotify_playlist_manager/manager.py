@@ -56,7 +56,7 @@ def format_managed_union_check_text(
         managed_union_check.diff_output,
         output_format,
     )
-    heading = f"{managed_union_check.playlist_id} - {managed_union_check.playlist_name}"
+    heading = f"{managed_union_check.playlist_name} ({managed_union_check.playlist_id})"
     return heading if not diff_text else f"{heading}\n{diff_text}"
 
 
